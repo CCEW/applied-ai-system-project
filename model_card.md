@@ -104,7 +104,7 @@ hallucination detector.
 ### Could your AI be misused, and how would you prevent that?
 
 The direct risk is low — it recommends songs from a fixed, local catalog and cannot take real
-actions. The realistic misuse is *over-trust*: presenting an LLM-written answer as an
+actions. The realistic misuse is over-trust: presenting an LLM-written answer as an
 authoritative or "personalized" recommendation when it is really matching a few surface
 features, which could mislead a user or, at scale, quietly push everyone toward the same
 popular tracks. I mitigate this by (1) grounding every answer in retrieved catalog data and
@@ -116,26 +116,26 @@ limiting and no logging of personal listening data.
 
 ### What surprised you while testing your AI's reliability?
 
-Two things. First, how easily a fluent answer can *look* trustworthy while being weakly
+Two things. First, how easily a fluent answer can look trustworthy while being weakly
 grounded: my first confidence formula rated a nonsense query ("asdfghjkl zzz") at **0.62**,
 because it gave too much credit simply for the guardrail passing. Re-weighting confidence
 toward the retriever's actual match strength dropped that same query to about **0.28** while a
 strong match stayed near **0.84** — testing, not intuition, is what exposed the gap. Second,
-how much of the reliability work lives *around* the model rather than in it: the parts that
+how much of the reliability work lives around the model rather than in it: the parts that
 made the system trustworthy (retrieval, the guardrail, the fallback, confidence) are all
 deterministic code I could unit-test offline, and mocking the LLM kept the whole suite fast,
 free, and reproducible.
 
 ### Describe your collaboration with AI during this project.
 
-I built this project in collaboration with an AI coding assistant (Claude Code), working
+I built this project in collaboration with Claude Code, working
 task-by-task: choosing the extension, then implementing retrieval, generation, guardrails, the
-interface, tests, and docs. The AI wrote most of the scaffolding while I made the key
-decisions — provider choice (a free, low-token model), what the guardrail should check, and
-when to stop — and verified each step by running the code and reading the output.
+interface, tests, and docs. I made the key
+decisions, provider choice (a free, low-token model), what the guardrail should check, and
+when to stop, and verified each step by running the code and reading the output.
 
 **One helpful suggestion:** the AI proposed reusing the original `score_song` rule as the RAG
-*retriever* instead of discarding it, and pairing the LLM with a catalog-validation guardrail
+retriever instead of discarding it, and pairing the LLM with a catalog-validation guardrail
 plus a rule-based fallback. This "retrieve → generate → verify → fall back" framing is what
 turned a fuzzy idea into a system I could actually test and trust, and it reused work I had
 already done rather than throwing it away.
