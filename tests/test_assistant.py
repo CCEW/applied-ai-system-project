@@ -32,6 +32,15 @@ def test_parse_query_detects_low_energy_and_acoustic():
     assert prefs["likes_acoustic"] is True
 
 
+def test_parse_query_does_not_match_pop_inside_kpop():
+    # "k-pop" and "pop" are different genres; the parser must not match "pop"
+    # as a substring of "k-pop" (regression test for hyphen-boundary matching).
+    assert parse_query("some k-pop bangers", SONGS)["genre"] is None
+    # ...but real pop and hyphenated/compound genres still resolve.
+    assert parse_query("high energy pop for the gym", SONGS)["genre"] == "pop"
+    assert parse_query("hip-hop beats", SONGS)["genre"] == "hip-hop"
+
+
 def test_parse_query_conflicting_energy_stays_neutral():
     # Both a high and a low cue -> the parser refuses to guess.
     prefs = parse_query("something sad but energetic and intense yet chill", SONGS)

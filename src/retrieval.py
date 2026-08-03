@@ -11,6 +11,7 @@ the grounding context that the generation layer (Task 2) must build its
 answer from -- the LLM is never allowed to invent songs outside this set.
 """
 import logging
+import re
 from typing import Dict, List, Optional
 
 from src.recommender import recommend_songs
@@ -53,6 +54,18 @@ def _catalog_vocabulary(songs: List[Dict], field: str) -> List[str]:
     return seen
 
 
+def _mentions_term(term: str, text: str) -> bool:
+    """True if `term` appears in `text` as a whole word/phrase, not inside another word.
+
+    Boundaries treat both word characters and hyphens as "inside a word", so the
+    genre "pop" is NOT matched inside "k-pop" (k-pop and pop are different genres),
+    while "indie pop" or "hip-hop" still match when written out. Punctuation and
+    spaces are valid boundaries, so "pop," or "pop." still match.
+    """
+    pattern = r"(?<![\w-])" + re.escape(term) + r"(?![\w-])"
+    return re.search(pattern, text) is not None
+
+
 def parse_query(query: str, songs: List[Dict]) -> Dict:
     """Parse a free-text request into a `user_prefs` dict for `score_song`.
 
@@ -60,16 +73,16 @@ def parse_query(query: str, songs: List[Dict]) -> Dict:
     present in the request is left as None (energy) or omitted, so the scorer
     simply skips it rather than guessing.
     """
-    text = f" {query.lower().strip()} "
+    text = query.lower().strip()
 
     genres = _catalog_vocabulary(songs, "genre")
     moods = _catalog_vocabulary(songs, "mood")
 
     matched_genre: Optional[str] = next(
-        (g for g in genres if f" {g} " in text or g in query.lower()), None
+        (g for g in genres if _mentions_term(g, text)), None
     )
     matched_mood: Optional[str] = next(
-        (m for m in moods if f" {m} " in text or m in query.lower()), None
+        (m for m in moods if _mentions_term(m, text)), None
     )
 
     def _mentions(words: set) -> bool:
