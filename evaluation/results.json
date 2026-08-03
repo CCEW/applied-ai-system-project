@@ -1,0 +1,61 @@
+{
+  "summary": "9 out of 9 reliability checks passed.",
+  "passed": 9,
+  "total": 9,
+  "cases": [
+    {
+      "input": "\"high energy pop for the gym\"",
+      "criteria": "Detects genre=pop and high energy",
+      "result": "Pass",
+      "detail": "{'genre': 'pop', 'mood': None, 'energy': 0.9, 'likes_acoustic': False}"
+    },
+    {
+      "input": "\"chill acoustic music for studying\"",
+      "criteria": "Detects low energy and acoustic preference",
+      "result": "Pass",
+      "detail": "{'genre': None, 'mood': 'chill', 'energy': 0.25, 'likes_acoustic': True}"
+    },
+    {
+      "input": "\"sad but energetic ... yet chill\"",
+      "criteria": "Conflicting energy cues -> energy left neutral (None)",
+      "result": "Pass",
+      "detail": "{'genre': None, 'mood': 'chill', 'energy': None, 'likes_acoustic': False}"
+    },
+    {
+      "input": "\"high energy pop for the gym\"",
+      "criteria": "All retrieved candidates exist in the catalog",
+      "result": "Pass",
+      "detail": "5 candidates checked"
+    },
+    {
+      "input": "LLM answer citing an invented song",
+      "criteria": "Guardrail flags off-catalog title and rejects (ok=False)",
+      "result": "Pass",
+      "detail": "{'grounded': True, 'mentioned': ['Gym Hero'], 'off_catalog': ['Totally Fake Song'], 'ok': False}"
+    },
+    {
+      "input": "LLM answer citing a retrieved song",
+      "criteria": "Guardrail accepts grounded answer (ok=True)",
+      "result": "Pass",
+      "detail": "{'grounded': True, 'mentioned': ['Gym Hero'], 'off_catalog': [], 'ok': True}"
+    },
+    {
+      "input": "Empty request string",
+      "criteria": "Handled gracefully with a clear ValueError (no crash)",
+      "result": "Pass",
+      "detail": ""
+    },
+    {
+      "input": "\"something moody for a night drive\" (LLM fails)",
+      "criteria": "Falls back to a catalog-grounded rule-based answer",
+      "result": "Pass",
+      "detail": "source=fallback, confidence=0.35"
+    },
+    {
+      "input": "Confidence score output",
+      "criteria": "Confidence is a number within [0, 1]",
+      "result": "Pass",
+      "detail": "confidence=0.35"
+    }
+  ]
+}
