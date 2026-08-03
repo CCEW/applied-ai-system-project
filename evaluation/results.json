@@ -7,19 +7,19 @@
       "input": "\"high energy pop for the gym\"",
       "criteria": "Detects genre=pop and high energy",
       "result": "Pass",
-      "detail": "{'genre': 'pop', 'mood': None, 'energy': 0.9, 'likes_acoustic': False}"
+      "detail": "{'genre': 'pop', 'mood': None, 'energy': 0.9, 'likes_acoustic': False, 'exclude_genres': []}"
     },
     {
       "input": "\"chill acoustic music for studying\"",
       "criteria": "Detects low energy and acoustic preference",
       "result": "Pass",
-      "detail": "{'genre': None, 'mood': 'chill', 'energy': 0.25, 'likes_acoustic': True}"
+      "detail": "{'genre': None, 'mood': 'chill', 'energy': 0.25, 'likes_acoustic': True, 'exclude_genres': []}"
     },
     {
       "input": "\"sad but energetic ... yet chill\"",
       "criteria": "Conflicting energy cues -> energy left neutral (None)",
       "result": "Pass",
-      "detail": "{'genre': None, 'mood': 'chill', 'energy': None, 'likes_acoustic': False}"
+      "detail": "{'genre': None, 'mood': 'chill', 'energy': None, 'likes_acoustic': False, 'exclude_genres': []}"
     },
     {
       "input": "\"high energy pop for the gym\"",
@@ -49,13 +49,13 @@
       "input": "\"something moody for a night drive\" (LLM fails)",
       "criteria": "Falls back to a catalog-grounded rule-based answer",
       "result": "Pass",
-      "detail": "source=fallback, confidence=0.35"
+      "detail": "source=fallback, confidence=0.36"
     },
     {
       "input": "Confidence score output",
       "criteria": "Confidence is a number within [0, 1]",
       "result": "Pass",
-      "detail": "confidence=0.35"
+      "detail": "confidence=0.36"
     }
   ]
 }
