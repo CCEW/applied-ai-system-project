@@ -39,6 +39,13 @@ ACOUSTIC_WORDS = {
 HIGH_ENERGY_TARGET = 0.9
 LOW_ENERGY_TARGET = 0.25
 
+# Negation cues that appear right before a genre the user does NOT want, e.g.
+# "anything but country", "no rock", "but not jazz", "without pop".
+NEGATION_CUE = (
+    r"(?:no|not|without|except|excluding|avoid|skip|anything but|but no|but not)"
+    r"\s+(?:the\s+|more\s+|any\s+)?"
+)
+
 
 def _catalog_vocabulary(songs: List[Dict], field: str) -> List[str]:
     """Collect the distinct values of a field (e.g. genre, mood) from the catalog.
@@ -66,6 +73,20 @@ def _mentions_term(term: str, text: str) -> bool:
     return re.search(pattern, text) is not None
 
 
+def _negated_terms(terms: List[str], text: str) -> set:
+    """Return the terms the user explicitly does NOT want.
+
+    A term is negated when a negation cue directly precedes it, e.g.
+    "anything but country", "no rock", "but not jazz", "without pop".
+    """
+    negated = set()
+    for term in terms:
+        pattern = NEGATION_CUE + r"(?<![\w-])" + re.escape(term) + r"(?![\w-])"
+        if re.search(pattern, text):
+            negated.add(term)
+    return negated
+
+
 def parse_query(query: str, songs: List[Dict]) -> Dict:
     """Parse a free-text request into a `user_prefs` dict for `score_song`.
 
@@ -78,8 +99,14 @@ def parse_query(query: str, songs: List[Dict]) -> Dict:
     genres = _catalog_vocabulary(songs, "genre")
     moods = _catalog_vocabulary(songs, "mood")
 
+    # Genres the user explicitly excluded ("anything but rock", "no jazz").
+    excluded_genres = _negated_terms(genres, text)
+
+    # A positive genre match must not be one of the excluded genres, so
+    # "something pop but no rock" keeps pop and drops rock.
     matched_genre: Optional[str] = next(
-        (g for g in genres if _mentions_term(g, text)), None
+        (g for g in genres if _mentions_term(g, text) and g not in excluded_genres),
+        None,
     )
     matched_mood: Optional[str] = next(
         (m for m in moods if _mentions_term(m, text)), None
@@ -104,6 +131,7 @@ def parse_query(query: str, songs: List[Dict]) -> Dict:
         "mood": matched_mood,
         "energy": energy,
         "likes_acoustic": likes_acoustic,
+        "exclude_genres": sorted(excluded_genres),
     }
     logger.info("Parsed query %r -> %s", query, prefs)
     return prefs
@@ -122,7 +150,21 @@ def retrieve(query: str, songs: List[Dict], k: int = 5) -> Dict:
         raise ValueError("no songs available to recommend from")
 
     prefs = parse_query(query, songs)
-    ranked = recommend_songs(prefs, songs, k=k)
+
+    # Honor negation: drop songs whose genre the user asked to avoid before
+    # ranking. If that would remove everything, keep the full catalog rather
+    # than return nothing.
+    exclude = set(prefs.get("exclude_genres") or [])
+    pool = songs
+    if exclude:
+        filtered = [s for s in songs if str(s.get("genre", "")).lower() not in exclude]
+        if filtered:
+            pool = filtered
+            logger.info("Excluded genres %s (%d songs removed)", sorted(exclude), len(songs) - len(filtered))
+        else:
+            logger.warning("Exclusion %s would empty the catalog; ignoring it", sorted(exclude))
+
+    ranked = recommend_songs(prefs, pool, k=k)
 
     candidates = [
         {

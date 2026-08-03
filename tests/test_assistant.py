@@ -41,6 +41,29 @@ def test_parse_query_does_not_match_pop_inside_kpop():
     assert parse_query("hip-hop beats", SONGS)["genre"] == "hip-hop"
 
 
+def test_negation_excludes_genre_from_results():
+    # "anything but country" -> country is excluded and absent from candidates.
+    prefs = parse_query("anything but country music", SONGS)
+    assert "country" in prefs["exclude_genres"]
+    assert prefs["genre"] is None
+    candidates = retrieve("anything but country music", SONGS, k=8)["candidates"]
+    assert all(c["genre"] != "country" for c in candidates)
+
+
+def test_negation_keeps_positive_genre_and_drops_excluded():
+    # "something pop but no rock" -> keep pop, drop rock.
+    prefs = parse_query("something pop but no rock music", SONGS)
+    assert prefs["genre"] == "pop"
+    assert "rock" in prefs["exclude_genres"]
+    candidates = retrieve("something pop but no rock music", SONGS, k=8)["candidates"]
+    assert all(c["genre"] != "rock" for c in candidates)
+
+
+def test_no_negation_leaves_exclude_empty():
+    prefs = parse_query("high energy pop for the gym", SONGS)
+    assert prefs["exclude_genres"] == []
+
+
 def test_parse_query_conflicting_energy_stays_neutral():
     # Both a high and a low cue -> the parser refuses to guess.
     prefs = parse_query("something sad but energetic and intense yet chill", SONGS)
