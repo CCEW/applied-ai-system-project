@@ -1,48 +1,83 @@
 """
-Command line runner for the Music Recommender Simulation.
+Command-line entry point for the RAG Music Assistant.
 
-This file helps you quickly run and test your recommender.
+The app now behaves as a natural-language music assistant: you describe what
+you want in plain English, it RETRIEVES matching songs from the catalog
+(local, 0 tokens), a Groq LLM writes a grounded recommendation, and a guardrail
+verifies the answer before showing it (falling back to a rule-based answer if
+anything goes wrong).
 
-You will implement the functions in recommender.py:
-- load_songs
-- score_song
-- recommend_songs
+Usage:
+    python -m src.main                      # interactive prompt
+    python -m src.main "chill study music"  # one-shot query
 """
-from textwrap import shorten
-from src.recommender import load_songs, recommend_songs, score_song
+import logging
+import sys
+from typing import List
 
-def print_summary_table(profile_name: str, recommendations: list) -> None:
-    print(f"\nSummary for {profile_name}:\n")
-    print(f"{'Rank':<5} {'Song':<24} {'Score':>7} {'Reason':<70}")
-    print(f"{'-' * 5} {'-' * 24} {'-' * 7} {'-' * 70}")
+from src.assistant import recommend
+from src.recommender import load_songs
 
-    for index, (song, score, explanation) in enumerate(recommendations, start=1):
-        reason_text = explanation.replace("Matched because ", "").rstrip(".")
-        reason_text = shorten(reason_text, width=68, placeholder="...")
-        print(f"{index:<5} {song['title']:<24} {score:>7.2f} {reason_text:<70}")
+SONGS_PATH = "data/songs.csv"
+
+
+def configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
+
+
+def print_result(result: dict) -> None:
+    print("\n" + "=" * 60)
+    print(f"Your request: {result['query']}")
+    print(f"Detected preferences: {result['prefs']}")
+    print("-" * 60)
+    print(result["answer"])
+    print("-" * 60)
+    conf = result["confidence"]
+    print(f"[source: {result['source']}]  [confidence: {conf['score']:.2f}]")
+    print(f"[why: {conf['reason']}]")
+    if result["source"] == "llm" and result["validation"]:
+        print(f"[grounded in: {', '.join(result['validation']['mentioned'])}]")
+    elif result["fallback_reason"]:
+        print(f"[fallback: {result['fallback_reason']}]")
+    print("=" * 60)
+
+
+def run_once(query: str, songs: List[dict]) -> None:
+    result = recommend(query, songs, k=5)
+    print_result(result)
+
+
+def run_interactive(songs: List[dict]) -> None:
+    print("\n🎵 Music Assistant — describe what you'd like to hear.")
+    print("   Examples: 'high energy pop for the gym', 'rainy day study music'")
+    print("   Type 'quit' or press Ctrl+C to exit.\n")
+    while True:
+        try:
+            query = input("You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nGoodbye! 🎶")
+            return
+        if not query:
+            continue
+        if query.lower() in {"quit", "exit", "q"}:
+            print("Goodbye! 🎶")
+            return
+        run_once(query, songs)
+        print()
 
 
 def main() -> None:
-    songs = load_songs("data/songs.csv") 
+    configure_logging()
+    songs = load_songs(SONGS_PATH)
 
-    # Starter example profile
-    user_prefs = {"genre": "pop", "mood": "happy", "energy": 0.8}
-    profiles = [
-    ("conflicting-mood-energy", {"genre": "pop", "mood": "sad", "energy": 0.9, "likes_acoustic": False}),
-    ("acoustic-trap", {"genre": "rock", "mood": "happy", "energy": 0.2, "likes_acoustic": True}),
-    ]
-    for name, user_prefs in profiles:
-        print(f"=== {name} ===")       
-        recommendations = recommend_songs(user_prefs, songs, k=5)
-        print("\nTop recommendations:\n")
-        for rec in recommendations:
-            # You decide the structure of each returned item.
-            # A common pattern is: (song, score, explanation)
-            song, score, explanation = rec
-            print(f"{song['title']} - Score: {score:.2f}")
-            print(f"Because: {explanation}")
-            print()
-        print_summary_table(name, recommendations)
+    query = " ".join(sys.argv[1:]).strip()
+    if query:
+        run_once(query, songs)
+    else:
+        run_interactive(songs)
 
 
 if __name__ == "__main__":
