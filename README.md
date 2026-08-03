@@ -237,9 +237,7 @@ Based on your request for pop music without rock, I recommend the following thre
 ============================================================
 ```
 
-> The rule-based scorer is still central — it powers retrieval and the fallback shown in
-> Example 3 — but it is no longer invoked as a standalone profile demo, so there is no
-> separate command output to show for it here.
+
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or demo video link here -->
 
