@@ -1,0 +1,61 @@
+%% RAG Music Assistant - System Architecture
+%% Data flow: input -> retrieve -> generate -> validate -> output
+%% Render at https://mermaid.live or with the Mermaid CLI / VS Code Mermaid preview.
+
+flowchart TD
+    %% ---------- Input ----------
+    User([👤 User<br/>free-text request]):::human
+    Catalog[("🎵 Catalog<br/>data/songs.csv")]:::data
+
+    %% ---------- Retrieval (local, 0 tokens) ----------
+    subgraph RET["Retriever — src/retrieval.py (local, 0 tokens)"]
+        Parse["parse_query()<br/>text → taste prefs"]:::proc
+        Score["score_song() ranking<br/>(rule-based scorer)"]:::proc
+        Parse --> Score
+    end
+
+    %% ---------- Generation (Groq LLM) ----------
+    subgraph GEN["Generator — src/generation.py"]
+        LLM["Groq LLM<br/>llama-3.1-8b-instant<br/>grounded in candidates only"]:::ai
+    end
+
+    %% ---------- Guardrail / Evaluator ----------
+    subgraph ORCH["Orchestrator + Guardrail — src/assistant.py"]
+        Validate{"validate_answer()<br/>grounded? hallucination?"}:::check
+        Fallback["rule_based_answer()<br/>safe catalog-only reply"]:::proc
+    end
+
+    %% ---------- Output ----------
+    Output([💬 Recommendation<br/>+ source + grounding info]):::output
+    UI["Interface<br/>src/main.py • src/app.py"]:::proc
+
+    %% ---------- Testing (offline) ----------
+    Tests["🧪 Automated tests<br/>tests/test_assistant.py<br/>(LLM mocked, offline)"]:::test
+
+    %% ================= DATA FLOW =================
+    User -->|"'chill acoustic folk for a cozy evening'"| Parse
+    Catalog --> Score
+    Score -->|"top-k grounded candidates"| LLM
+    LLM -->|"draft recommendation"| Validate
+
+    Validate -->|"✅ ok: grounded, no hallucination"| UI
+    Validate -->|"❌ rejected"| Fallback
+    LLM -.->|"API error / no key"| Fallback
+    Fallback --> UI
+    UI --> Output
+    Output --> User
+
+    %% ================= HUMAN / TESTING CHECKS =================
+    Catalog -. "ground-truth: valid song titles" .-> Validate
+    Tests -. "verify guardrail<br/>+ fallback behavior" .-> Validate
+    Tests -. "verify parsing<br/>+ retrieval" .-> RET
+    User -. "human reads answer<br/>+ transparency panel" .-> Output
+
+    %% ================= STYLES =================
+    classDef human fill:#e8f0fe,stroke:#4285f4,color:#111,stroke-width:1px
+    classDef data fill:#fff4e5,stroke:#f5a623,color:#111
+    classDef proc fill:#eef7ee,stroke:#34a853,color:#111
+    classDef ai fill:#f3e8fd,stroke:#a142f4,color:#111,stroke-width:2px
+    classDef check fill:#fde8e8,stroke:#ea4335,color:#111,stroke-width:2px
+    classDef output fill:#e6f4ff,stroke:#1a73e8,color:#111
+    classDef test fill:#fffbe6,stroke:#d4a000,color:#111,stroke-dasharray:4 3
