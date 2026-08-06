@@ -12,8 +12,11 @@ import logging
 
 import streamlit as st
 
-from src.assistant import recommend
-from src.recommender import load_songs
+# Use local imports so the file can be run directly with `streamlit run src/app.py`.
+# When Streamlit runs the script, the script's directory is added to sys.path,
+# so importing the sibling modules without the `src.` package prefix works.
+from assistant import recommend
+from recommender import load_songs
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
