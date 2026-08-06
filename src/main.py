@@ -11,6 +11,7 @@ Usage:
     python -m src.main                      # interactive prompt
     python -m src.main "chill study music"  # one-shot query
 """
+import argparse
 import logging
 import sys
 from typing import List
@@ -45,9 +46,23 @@ def print_result(result: dict) -> None:
     print("=" * 60)
 
 
-def run_once(query: str, songs: List[dict]) -> None:
-    result = recommend(query, songs, k=5)
+def print_candidates(result: dict) -> None:
+    candidates = result.get("candidates", [])
+    if not candidates:
+        print("No candidates retrieved.")
+        return
+    print("\nRetrieved candidates:")
+    for i, c in enumerate(candidates, start=1):
+        print(
+            f"{i}. {c['title']} — artist: {c['artist']}, genre: {c['genre']}, "
+            f"mood: {c['mood']}, energy: {c['energy']:.2f}, score: {c['score']:.2f}"
+        )
+
+
+def run_once(query: str, songs: List[dict], k: int = 5) -> None:
+    result = recommend(query, songs, k=k)
     print_result(result)
+    return result
 
 
 def run_interactive(songs: List[dict]) -> None:
@@ -73,9 +88,17 @@ def main() -> None:
     configure_logging()
     songs = load_songs(SONGS_PATH)
 
-    query = " ".join(sys.argv[1:]).strip()
+    parser = argparse.ArgumentParser(description="RAG Music Assistant CLI")
+    parser.add_argument("query", nargs="*", help="Text query for recommendation")
+    parser.add_argument("-k", "--k", type=int, default=5, help="Number of candidates to retrieve")
+    parser.add_argument("--show-candidates", action="store_true", help="Print retrieved candidates and scores")
+    args = parser.parse_args()
+
+    query = " ".join(args.query).strip()
     if query:
-        run_once(query, songs)
+        result = run_once(query, songs, k=args.k)
+        if args.show_candidates:
+            print_candidates(result)
     else:
         run_interactive(songs)
 
