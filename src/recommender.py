@@ -2,6 +2,18 @@ import csv
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 
+# Scoring configuration constants
+# Tunable weights — changing these adjusts recommendation behavior.
+GENRE_WEIGHT = 2.5
+MOOD_WEIGHT = 1.0
+ENERGY_MAX = 2.5
+ENERGY_EXPONENT = 1.2  # exponent on energy difference to control sharpness
+ACOUSTIC_WEIGHT = 1.0
+
+# Adaptive multipliers for emphasized preferences (e.g. "party" -> high energy)
+ADAPTIVE_ENERGY_BOOST = 1.5
+HIGH_ENERGY_THRESHOLD = 0.75
+
 @dataclass
 class Song:
     """
@@ -124,22 +136,31 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     user_genre = user_prefs.get("genre")
     song_genre = song.get("genre")
     if user_genre and song_genre and str(user_genre).lower() == str(song_genre).lower():
-        score += 2.0
-        reasons.append("genre match (+2.0)")
+        score += GENRE_WEIGHT
+        reasons.append(f"genre match (+{GENRE_WEIGHT:.1f})")
 
     user_mood = user_prefs.get("mood")
     song_mood = song.get("mood")
     if user_mood and song_mood and str(user_mood).lower() == str(song_mood).lower():
-        score += 1.0
-        reasons.append("mood match (+1.0)")
+        score += MOOD_WEIGHT
+        reasons.append(f"mood match (+{MOOD_WEIGHT:.1f})")
 
     target_energy = user_prefs.get("energy")
     song_energy = song.get("energy")
     if target_energy is not None and song_energy is not None:
         target_energy_value = float(target_energy)
         song_energy_value = float(song_energy)
-        energy_closeness = max(0.0, 1.0 - abs(song_energy_value - target_energy_value))
-        energy_points = 2.0 * energy_closeness
+        # Sharper reward for closer energy matches using an exponent
+        energy_closeness = max(0.0, 1.0 - abs(song_energy_value - target_energy_value) ** ENERGY_EXPONENT)
+        energy_points = ENERGY_MAX * energy_closeness
+        # Adaptive boost when the user explicitly requests high energy (e.g., "party")
+        adaptive_multiplier = 1.0
+        try:
+            if float(target_energy_value) >= HIGH_ENERGY_THRESHOLD:
+                adaptive_multiplier = ADAPTIVE_ENERGY_BOOST
+        except Exception:
+            adaptive_multiplier = 1.0
+        energy_points *= adaptive_multiplier
         score += energy_points
         reasons.append(f"energy similarity (+{energy_points:.1f})")
 
@@ -148,8 +169,9 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     if song_acousticness is not None:
         acousticness_value = float(song_acousticness)
         acoustic_score = acousticness_value if likes_acoustic else max(0.0, 1.0 - acousticness_value)
-        score += 1.0 * acoustic_score
-        reasons.append("acoustic preference")
+        acoustic_points = ACOUSTIC_WEIGHT * acoustic_score
+        score += acoustic_points
+        reasons.append(f"acoustic preference (+{acoustic_points:.2f})")
 
     return round(score, 3), reasons
 
