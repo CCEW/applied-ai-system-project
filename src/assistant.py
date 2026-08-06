@@ -21,8 +21,14 @@ import logging
 import re
 from typing import Dict, List, Optional, Set
 
-from src.generation import GenerationError, generate_recommendation
-from src.retrieval import retrieve
+try:
+    from src.generation import GenerationError, generate_recommendation
+    from src.retrieval import retrieve
+except Exception:
+    # Support running the scripts directly (e.g. `streamlit run src/app.py`)
+    # where the `src` package may not be importable; fall back to local imports.
+    from generation import GenerationError, generate_recommendation
+    from retrieval import retrieve
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +110,10 @@ def compute_confidence(
     # fluently. Source only shifts the floor: a guardrail-passing LLM answer is
     # trusted a little more than a fallback.
     if source == "llm" and validation and validation.get("ok"):
-        score = 0.35 + 0.60 * match_strength
+        # Increase base trust for LLM answers while keeping match strength
+        # influence. This makes confident LLM-passed answers score higher
+        # without removing the importance of retrieval match quality.
+        score = 0.45 + 0.50 * match_strength
         reason = (
             f"LLM answer passed the guardrail (grounded in "
             f"{len(validation['mentioned'])} song(s)); top match strength "
@@ -192,7 +201,10 @@ def recommend(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    from src.recommender import load_songs
+    try:
+        from src.recommender import load_songs
+    except Exception:
+        from recommender import load_songs
 
     catalog = load_songs("data/songs.csv")
     result = recommend("high energy pop for the gym", catalog, k=5)
