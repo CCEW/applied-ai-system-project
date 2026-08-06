@@ -138,8 +138,12 @@ if __name__ == "__main__":
     # Manual end-to-end check (needs GROQ_API_KEY). Retrieval alone is free;
     # this script makes one small paid-tier-free API call.
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    from src.recommender import load_songs
-    from src.retrieval import retrieve
+    try:
+        from src.recommender import load_songs
+        from src.retrieval import retrieve
+    except Exception:
+        from recommender import load_songs
+        from retrieval import retrieve
 
     catalog = load_songs("data/songs.csv")
     result = retrieve("high energy pop for the gym", catalog, k=5)
