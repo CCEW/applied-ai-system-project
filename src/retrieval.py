@@ -14,7 +14,10 @@ import logging
 import re
 from typing import Dict, List, Optional
 
-from src.recommender import recommend_songs
+try:
+    from src.recommender import recommend_songs
+except Exception:
+    from recommender import recommend_songs
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +189,10 @@ def retrieve(query: str, songs: List[Dict], k: int = 5) -> Dict:
 if __name__ == "__main__":
     # Quick manual smoke test (zero tokens, no API needed).
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    from src.recommender import load_songs
+    try:
+        from src.recommender import load_songs
+    except Exception:
+        from recommender import load_songs
 
     catalog = load_songs("data/songs.csv")
     for q in [
